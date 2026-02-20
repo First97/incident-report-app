@@ -28,7 +28,7 @@ A full-stack web application for creating, viewing, editing, and deleting incide
 | -------- | --------------------------------------- |
 | Frontend | React, TypeScript, Vite, Tailwind CSS   |
 | Backend  | Go (Golang)                             |
-| Database | SQLite / PostgreSQL                     |
+| Database | PostgreSQL                     |
 | Libraries | TanStack Query, React Hook Form, Zod, SheetJS (xlsx) |
 
 ---
@@ -59,14 +59,14 @@ incident-report-app/
 
 - Node.js >= 18
 - Go >= 1.21
-- (Optional) PostgreSQL — or use SQLite for local dev
+- PostgreSQL for local dev
 
 ---
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/incident-report-app.git
+git clone https://github.com/First97/incident-report-app.git
 cd incident-report-app
 ```
 
@@ -77,18 +77,11 @@ cd incident-report-app
 ```bash
 cd backend
 
-# Install dependencies
-go mod tidy
-
-# Configure environment
-cp .env.example .env
-# Edit .env: set DB connection string, port, etc.
-
 # Run the server
-go run main.go
+go run ./cmd/api
 ```
 
-Backend runs at: `http://localhost:8080`
+Backend runs at: `http://localhost:8080/api/incidents`
 
 ---
 
@@ -100,15 +93,11 @@ cd frontend
 # Install dependencies
 npm install
 
-# Configure environment
-cp .env.example .env
-# Set VITE_API_URL=http://localhost:8080
-
 # Run dev server
 npm run dev
 ```
 
-Frontend runs at: `http://localhost:5173`
+Frontend runs at: `http://localhost:3000`
 
 ---
 
@@ -120,21 +109,6 @@ Frontend runs at: `http://localhost:5173`
 | POST   | `/api/incidents`       | Create a new incident    |
 | PUT    | `/api/incidents/:id`   | Update an incident       |
 | DELETE | `/api/incidents/:id`   | Delete an incident       |
-
-> `POST` and `DELETE` require the `X-Owner-Id` header (set automatically by the frontend).
-
----
-
-## 📦 Incident Fields
-
-| Field       | Type                                  | Required |
-| ----------- | ------------------------------------- | -------- |
-| title       | string (min 3 chars)                  | ✅       |
-| description | string (max 2000 chars)               | ❌       |
-| category    | `Safety` \| `Maintenance`             | ✅       |
-| status      | `Open` \| `In Progress` \| `Success`  | ✅       |
-| createdAt   | timestamp (auto)                      | —        |
-| updatedAt   | timestamp (auto)                      | —        |
 
 ---
 
@@ -159,3 +133,4 @@ DATABASE_URL=./incident.db   # SQLite example
 ## 📝 License
 
 This project was built as part of a Full-Stack Developer Intern technical assessment.
+
