@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
 import type { Incident, IncidentInput } from "./lib/api";
 import { listIncidents, createIncident, updateIncident, deleteIncident } from "./lib/api";
 import Modal from "./components/Modal";
@@ -15,6 +16,8 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const incidentsQ = useQuery({
     queryKey: ["incidents"],
@@ -57,6 +60,38 @@ export default function App() {
     });
   }, [incidentsQ.data, filterCategory, filterStatus, search]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleFilterChange = (fn: () => void) => {
+    fn();
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setPage(1);
+  };
+
+  // Export filtered data to Excel
+  const handleExportExcel = () => {
+    const rows = filtered.map((it) => ({
+      ID: it.id,
+      Title: it.title,
+      Description: it.description,
+      Category: it.category,
+      Status: it.status,
+      "Created At": new Date(it.createdAt).toLocaleString(),
+      "Updated At": new Date(it.updatedAt).toLocaleString(),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Incidents");
+    XLSX.writeFile(wb, "incidents.xlsx");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-5xl p-6">
@@ -65,12 +100,21 @@ export default function App() {
             <h1 className="text-2xl font-bold">Incident Report App</h1>
             <p className="text-sm text-gray-600">Create • View • Edit • Delete (own)</p>
           </div>
-          <button
-            onClick={() => setOpenCreate(true)}
-            className="rounded-2xl bg-black px-4 py-2 text-sm font-medium text-white"
-          >
-            + New Incident
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportExcel}
+              disabled={filtered.length === 0}
+              className="rounded-2xl border border-green-600 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100 disabled:opacity-40"
+            >
+              ↓ Export Excel
+            </button>
+            <button
+              onClick={() => setOpenCreate(true)}
+              className="rounded-2xl bg-black px-4 py-2 text-sm font-medium text-white"
+            >
+              + New Incident
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 rounded-2xl bg-white p-4 shadow-sm md:grid-cols-3">
@@ -78,13 +122,13 @@ export default function App() {
             className="rounded-xl border px-3 py-2 outline-none focus:ring"
             placeholder="Search title..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleFilterChange(() => setSearch(e.target.value))}
           />
 
           <select
             className="rounded-xl border px-3 py-2 outline-none focus:ring"
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => handleFilterChange(() => setFilterCategory(e.target.value))}
           >
             <option value="All">All categories</option>
             <option value="Safety">Safety</option>
@@ -94,7 +138,7 @@ export default function App() {
           <select
             className="rounded-xl border px-3 py-2 outline-none focus:ring"
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => handleFilterChange(() => setFilterStatus(e.target.value))}
           >
             <option value="All">All statuses</option>
             <option value="Open">Open</option>
@@ -104,9 +148,38 @@ export default function App() {
         </div>
 
         <div className="mt-5 rounded-2xl bg-white shadow-sm">
-          <div className="border-b p-4">
+          <div className="border-b p-4 flex items-center justify-between">
             <div className="text-sm text-gray-600">
               Total: <span className="font-medium text-gray-900">{filtered.length}</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Page size selector */}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>Show</span>
+                <div className="flex rounded-xl border overflow-hidden">
+                  {[5, 10].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => handlePageSizeChange(size)}
+                      className={`px-3 py-1 text-sm ${
+                        pageSize === size
+                          ? "bg-black text-white"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                <span>per page</span>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="text-sm text-gray-500">
+                  Page {currentPage} / {totalPages}
+                </div>
+              )}
             </div>
           </div>
 
@@ -118,7 +191,7 @@ export default function App() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="p-10 text-center text-gray-600">
-              ยังไม่มี incident — ลองกด “New Incident”
+              ยังไม่มี incident – ลองกด "New Incident"
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -133,7 +206,7 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((it) => (
+                  {paginated.map((it) => (
                     <tr key={it.id} className="border-b last:border-b-0">
                       <td className="p-4">
                         <div className="font-medium">{it.title}</div>
@@ -162,6 +235,41 @@ export default function App() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 border-t p-4">
+              <button
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={currentPage === 1}
+              >
+                ← Prev
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  className={`rounded-xl border px-3 py-1.5 text-sm ${
+                    p === currentPage
+                      ? "bg-black text-white border-black"
+                      : "hover:bg-gray-50"
+                  }`}
+                  onClick={() => setPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button
+                className="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>
